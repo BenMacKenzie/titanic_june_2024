@@ -126,7 +126,7 @@ mlflow.lightgbm.autolog()
 train_lgb_dataset = lgb.Dataset(X_train, label=y_train.values)
 test_lgb_dataset = lgb.Dataset(X_test, label=y_test.values)
 
-param = {"num_leaves": 16, "objective": "regression", "metric": "rmse"}
+param = {"num_leaves": 16, "objective": "regression", "metric": "rmse", "num_rounds": 50}
 num_rounds = 50
 
 # Train a lightGBM model
@@ -146,7 +146,7 @@ mlflow.lightgbm.log_model(
     input_example=input_example,    
     registered_model_name=model_name
 )
-
+mlflow.log_params(param)
 # The returned model URI is needed by the model deployment notebook.
 model_version = get_latest_model_version(model_name)
 model_uri = f"models:/{model_name}/{model_version}"
