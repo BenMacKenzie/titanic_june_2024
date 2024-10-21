@@ -40,6 +40,9 @@ dbutils.library.restartPython()
 # Provide them via DB widgets or notebook arguments.
 
 # Notebook Environment
+
+
+
 dbutils.widgets.dropdown("env", "staging", ["staging", "prod"], "Environment Name")
 env = dbutils.widgets.get("env")
 
@@ -119,7 +122,7 @@ y_train = train.Survived
 y_test = test.Survived
 
 from catboost import Pool, CatBoostClassifier
-categories = ['Cabin', 'Pclass', 'Sex', 'Embarked', 'Ticket', 'PassengerId', 'Name']
+categories = ['Cabin', 'Pclass', 'Sex', 'Embarked', 'Ticket']
 titanic_train_pool = Pool(X_train, y_train, cat_features=categories)
 titanic_test_pool = Pool(X_test, y_test, cat_features=categories)
 model = CatBoostClassifier(custom_loss=['Accuracy'])
