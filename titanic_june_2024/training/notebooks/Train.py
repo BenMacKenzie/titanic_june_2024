@@ -40,9 +40,6 @@ dbutils.library.restartPython()
 # Provide them via DB widgets or notebook arguments.
 
 # Notebook Environment
-
-
-
 dbutils.widgets.dropdown("env", "staging", ["staging", "prod"], "Environment Name")
 env = dbutils.widgets.get("env")
 
@@ -115,6 +112,8 @@ import catboost
 
 data = training_df.toPandas()
 data = data.dropna()
+data.drop(columns=['PassengerId', 'Name'], inplace=True)
+
 train, test = train_test_split(data, random_state=123)
 X_train = train.drop(["Survived"], axis=1)
 X_test = test.drop(["Survived"], axis=1)
