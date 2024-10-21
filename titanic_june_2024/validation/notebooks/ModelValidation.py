@@ -69,11 +69,9 @@ dbutils.widgets.dropdown("run_mode", "disabled", ["disabled", "dry_run", "enable
 dbutils.widgets.dropdown("enable_baseline_comparison", "false", ["true", "false"], "Enable Baseline Comparison")
 dbutils.widgets.text("validation_input", "SELECT * FROM delta.`dbfs:/databricks-datasets/nyctaxi-with-zipcodes/subsampled`", "Validation Input")
 
-dbutils.widgets.text("model_type", "regressor", "Model Type")
-dbutils.widgets.text("targets", "fare_amount", "Targets")
-dbutils.widgets.text("custom_metrics_loader_function", "custom_metrics", "Custom Metrics Loader Function")
+dbutils.widgets.text("model_type", "classifier", "Model Type")
+dbutils.widgets.text("targets", "Survived", "Targets")
 dbutils.widgets.text("validation_thresholds_loader_function", "validation_thresholds", "Validation Thresholds Loader Function")
-dbutils.widgets.text("evaluator_config_loader_function", "evaluator_config", "Evaluator Config Loader Function")
 dbutils.widgets.text("model_name", "dev.titanic_june_2024.titanic_june_2024-model", "Full (Three-Level) Model Name")
 dbutils.widgets.text("model_version", "", "Candidate Model Version")
 
@@ -141,7 +139,7 @@ enable_baseline_comparison = enable_baseline_comparison == "true"
 
 validation_input = dbutils.widgets.get("validation_input")
 assert validation_input
-data = spark.sql(validation_input)
+data = spark.sql(validation_input).dropna()
 
 model_type = dbutils.widgets.get("model_type")
 targets = dbutils.widgets.get("targets")
@@ -149,24 +147,14 @@ targets = dbutils.widgets.get("targets")
 assert model_type
 assert targets
 
-custom_metrics_loader_function_name = dbutils.widgets.get("custom_metrics_loader_function")
 validation_thresholds_loader_function_name = dbutils.widgets.get("validation_thresholds_loader_function")
-evaluator_config_loader_function_name = dbutils.widgets.get("evaluator_config_loader_function")
-assert custom_metrics_loader_function_name
 assert validation_thresholds_loader_function_name
-assert evaluator_config_loader_function_name
-custom_metrics_loader_function = getattr(
-    importlib.import_module("validation"), custom_metrics_loader_function_name
-)
+
 validation_thresholds_loader_function = getattr(
     importlib.import_module("validation"), validation_thresholds_loader_function_name
 )
-evaluator_config_loader_function = getattr(
-    importlib.import_module("validation"), evaluator_config_loader_function_name
-)
-custom_metrics = custom_metrics_loader_function()
+
 validation_thresholds = validation_thresholds_loader_function()
-evaluator_config = evaluator_config_loader_function()
 
 # COMMAND ----------
 
@@ -233,13 +221,12 @@ with mlflow.start_run(
             data=data,
             targets=targets,
             model_type=model_type,
-            evaluators=evaluators,
+            evaluators=["default"],
             validation_thresholds=validation_thresholds,
-            custom_metrics=custom_metrics,
             baseline_model=None
             if not enable_baseline_comparison
             else baseline_model_uri,
-            evaluator_config=evaluator_config,
+            
         )
         metrics_file = os.path.join(tmp_dir, "metrics.txt")
         with open(metrics_file, "w") as f:

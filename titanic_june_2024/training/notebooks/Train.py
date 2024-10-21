@@ -40,31 +40,34 @@ dbutils.library.restartPython()
 # Provide them via DB widgets or notebook arguments.
 
 # Notebook Environment
+
+
+
 dbutils.widgets.dropdown("env", "staging", ["staging", "prod"], "Environment Name")
 env = dbutils.widgets.get("env")
 
 # Path to the Hive-registered Delta table containing the training data.
 dbutils.widgets.text(
-    "training_data_path",
-    "/databricks-datasets/nyctaxi-with-zipcodes/subsampled",
-    label="Path to the training data",
+    "training_table",
+    "bmac.dev.titanic",
+    label="Name of training dataset",
 )
 
 # MLflow experiment name.
 dbutils.widgets.text(
     "experiment_name",
-    f"/dev-titanic_june_2024-experiment",
+    f"/dev-titanic_july_2024",
     label="MLflow experiment name",
 )
 # Unity Catalog registered model name to use for the trained model.
 dbutils.widgets.text(
-    "model_name", "dev.titanic_june_2024.titanic_june_2024-model", label="Full (Three-Level) Model Name"
+    "model_name", "bmac.dev.titanic_july_2024_model", label="Full (Three-Level) Model Name"
 )
 
 # COMMAND ----------
 # DBTITLE 1,Define input and output variables
 
-input_table_path = dbutils.widgets.get("training_data_path")
+input_table_name = dbutils.widgets.get("training_table")
 experiment_name = dbutils.widgets.get("experiment_name")
 model_name = dbutils.widgets.get("model_name")
 
@@ -79,7 +82,7 @@ mlflow.set_registry_uri('databricks-uc')
 # COMMAND ----------
 # DBTITLE 1, Load raw data
 
-training_df = spark.read.format("delta").load(input_table_path)
+training_df = spark.table(input_table_name)
 training_df.display()
 
 # COMMAND ----------
@@ -108,29 +111,29 @@ def get_latest_model_version(model_name):
 
 import mlflow
 from sklearn.model_selection import train_test_split
-import lightgbm as lgb
-import mlflow.lightgbm
+import catboost
 
-# Collect data into a Pandas array for training. Since the timestamp columns would likely
-# cause the model to overfit the data, exclude them to avoid training on them.
-columns = [col for col in training_df.columns if col not in ['tpep_pickup_datetime', 'tpep_dropoff_datetime']]
-data = training_df.toPandas()[columns]
-
+data = training_df.toPandas()
+data = data.dropna()
 train, test = train_test_split(data, random_state=123)
-X_train = train.drop(["fare_amount"], axis=1)
-X_test = test.drop(["fare_amount"], axis=1)
-y_train = train.fare_amount
-y_test = test.fare_amount
+X_train = train.drop(["Survived"], axis=1)
+X_test = test.drop(["Survived"], axis=1)
+y_train = train.Survived
+y_test = test.Survived
 
-mlflow.lightgbm.autolog()
-train_lgb_dataset = lgb.Dataset(X_train, label=y_train.values)
-test_lgb_dataset = lgb.Dataset(X_test, label=y_test.values)
+from catboost import Pool, CatBoostClassifier
+categories = ['Cabin', 'Pclass', 'Sex', 'Embarked', 'Ticket']
+titanic_train_pool = Pool(X_train, y_train, cat_features=categories)
+titanic_test_pool = Pool(X_test, y_test, cat_features=categories)
+model = CatBoostClassifier(custom_loss=['Accuracy'])
 
-param = {"num_leaves": 16, "objective": "regression", "metric": "rmse", "num_rounds": 50}
-num_rounds = 50
+with mlflow.start_run() as mlflow_run:
+    model.fit(titanic_train_pool, eval_set=titanic_test_pool, early_stopping_rounds=20)
+    accuracy = model.score(X_test, y_test)
+    mlflow.log_metric("accuracy", accuracy)
+    mlflow.catboost.log_model(model,artifact_path="catboost_model", input_example = X_train.iloc[[0]], registered_model_name=model_name)
 
-# Train a lightGBM model
-model = lgb.train(param, train_lgb_dataset, num_rounds)
+
 
 # COMMAND ----------
 # DBTITLE 1, Log model and return output.
@@ -139,15 +142,8 @@ model = lgb.train(param, train_lgb_dataset, num_rounds)
 input_example = X_train.iloc[[0]]
 
 # Log the trained model with MLflow
-mlflow.lightgbm.log_model(
-    model, 
-    artifact_path="lgb_model", 
-    # The signature is automatically inferred from the input example and its predicted output.
-    input_example=input_example,    
-    registered_model_name=model_name
-)
-mlflow.log_params(param)
 # The returned model URI is needed by the model deployment notebook.
+
 model_version = get_latest_model_version(model_name)
 model_uri = f"models:/{model_name}/{model_version}"
 dbutils.jobs.taskValues.set("model_uri", model_uri)

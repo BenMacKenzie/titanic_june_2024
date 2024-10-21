@@ -16,8 +16,8 @@ resources:
   registered_models:
       model:
         name: ${var.model_name}
-        catalog_name: ${bundle.target}
-        schema_name: titanic_june_2024
+        catalog_name: ${var.catalog}
+        schema_name: ${bundle.target}
         comment: Registered model in Unity Catalog for the "titanic_june_2024" ML Project for ${bundle.target} deployment target.
         <<: *grants
 

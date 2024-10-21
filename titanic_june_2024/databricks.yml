@@ -1,14 +1,20 @@
 # The name of the bundle. run `databricks bundle schema` to see the full bundle settings schema.
 bundle:
-  name: titanic_june_2024
+  name: titanic_july_2024
 
 variables:
   experiment_name:
     description: Experiment name for the model training.
-    default: /Users/${workspace.current_user.userName}/${bundle.target}-titanic_june_2024-experiment
+    default: /Users/${workspace.current_user.userName}/${bundle.target}_titanic_july_2024
   model_name:
     description: Model name for the model training.
-    default: titanic_june_2024-model
+    default: titanic_july_2024_model
+  catalog:
+    description: The catalog to use
+    default: bmac
+  dataset:
+    description: Name of table with training/validation data
+    default: titanic
 
 include:
   # Resources folder contains ML artifact resources for the ML project that defines model and experiment
