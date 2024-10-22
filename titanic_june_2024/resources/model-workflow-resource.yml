@@ -55,7 +55,8 @@ resources:
               enable_baseline_comparison: "true"
               # Please refer to data parameter in mlflow.evaluate documentation https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.evaluate
               # TODO: update validation_input
-              validation_input: SELECT * FROM bmac.${bundle.target}.${var.dataset}
+              #validation_input: SELECT * FROM bmac.${bundle.target}.${var.dataset}
+              validation_input: SELECT * FROM bmac.dev.${var.dataset}
               # A string describing the model type. The model type can be either "regressor" and "classifier".
               # Please refer to model_type parameter in mlflow.evaluate documentation https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.evaluate
               # TODO: update model_type
